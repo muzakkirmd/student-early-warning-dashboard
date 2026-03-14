@@ -71,7 +71,7 @@ def log_mentor_action():
     db.session.commit()
     return jsonify(action.to_dict()), 201
 
-@main.route('/api/seed', methods=['POST'])
+@main.route('/api/seed', methods=['GET','POST'])
 def seed_database():
     from app.models import Student, ActivityLog, RiskScore
     # Only seed if empty
