@@ -1,0 +1,96 @@
+{
+  "name": "Student Early Warning - Alert Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "id": "1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BACKEND_URL }}/api/risk-scores/high",
+        "options": {}
+      },
+      "name": "Fetch High Risk Students",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300],
+      "id": "2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{
+            "value1": "={{ $json.length }}",
+            "operation": "largerEqual",
+            "value2": 1
+          }]
+        }
+      },
+      "name": "Any High Risk?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300],
+      "id": "3"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Loop Each Student",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [900, 200],
+      "id": "4"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.ALERT_FROM_EMAIL }}",
+        "toEmail": "={{ $json.mentor_email }}",
+        "subject": "🔴 High Risk Alert: {{ $json.student_name }} needs attention",
+        "emailType": "html",
+        "message": "<h2>Student At-Risk Alert</h2><p>Hi,</p><p>Our early warning system has flagged <strong>{{ $json.student_name }}</strong> as HIGH RISK with a score of <strong>{{ $json.score }}</strong>/100.</p><h3>Risk Signals:</h3><ul><li>Login Frequency: {{ $json.signals.login_frequency.value }} (penalty: {{ $json.signals.login_frequency.penalty }})</li><li>Assignment Rate: {{ $json.signals.assignment_rate.value }} (penalty: {{ $json.signals.assignment_rate.penalty }})</li><li>Quiz Trend: {{ $json.signals.quiz_trend.value }}</li><li>Session Duration: {{ $json.signals.session_duration.value }}</li></ul><p>Course: {{ $json.course }}</p><p>Please reach out to this student within 24 hours.</p><p><a href='{{ $env.FRONTEND_URL }}/student/{{ $json.student_id }}'>View Full Dashboard →</a></p>"
+      },
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [1120, 200],
+      "id": "5"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "phoneNumberId": "={{ $env.WHATSAPP_PHONE_ID }}",
+        "recipientPhoneNumber": "={{ $env.MENTOR_WHATSAPP }}",
+        "textBody": "🔴 *High Risk Alert*\n\nStudent: *{{ $json.student_name }}*\nCourse: {{ $json.course }}\nRisk Score: *{{ $json.score }}/100*\n\nSignals:\n• Logins: {{ $json.signals.login_frequency.value }}\n• Assignments: {{ $json.signals.assignment_rate.value }}\n• Quiz trend: {{ $json.signals.quiz_trend.value }}\n\nPlease contact this student within 24 hours.\n\nView: {{ $env.FRONTEND_URL }}/student/{{ $json.student_id }}"
+      },
+      "name": "Send WhatsApp Alert",
+      "type": "n8n-nodes-base.whatsApp",
+      "position": [1120, 380],
+      "id": "6"
+    },
+    {
+      "parameters": {},
+      "name": "No High Risk - Stop",
+      "type": "n8n-nodes-base.noOp",
+      "position": [900, 420],
+      "id": "7"
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": { "main": [[{ "node": "Fetch High Risk Students", "type": "main", "index": 0 }]] },
+    "Fetch High Risk Students": { "main": [[{ "node": "Any High Risk?", "type": "main", "index": 0 }]] },
+    "Any High Risk?": {
+      "main": [
+        [{ "node": "Loop Each Student", "type": "main", "index": 0 }],
+        [{ "node": "No High Risk - Stop", "type": "main", "index": 0 }]
+      ]
+    },
+    "Loop Each Student": { "main": [[{ "node": "Send Email Alert", "type": "main", "index": 0 }, { "node": "Send WhatsApp Alert", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
