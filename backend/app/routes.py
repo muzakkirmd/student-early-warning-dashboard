@@ -123,3 +123,100 @@ def seed_database():
     db.session.commit()
 
     return jsonify({'message': 'Seeded successfully', 'students': len(NAMES), 'high_risk': high})
+
+# ADD THESE ROUTES TO YOUR EXISTING backend/app/routes.py
+# Paste this at the bottom of routes.py (before the last line)
+
+@main.route('/api/ingest/student', methods=['POST'])
+def ingest_student():
+    """Add or update a student via API or CSV import."""
+    data = request.json
+    if not data or not data.get('email'):
+        return jsonify({'error': 'email is required'}), 400
+
+    existing = Student.query.filter_by(email=data['email']).first()
+    if existing:
+        # Update existing student
+        if data.get('name'): existing.name = data['name']
+        if data.get('course'): existing.course = data['course']
+        if data.get('mentor_email'): existing.mentor_email = data['mentor_email']
+        db.session.commit()
+        return jsonify({'status': 'updated', 'student': existing.to_dict()})
+
+    # Create new student
+    student = Student(
+        name=data.get('name', 'Unknown'),
+        email=data['email'],
+        course=data.get('course', 'General'),
+        mentor_email=data.get('mentor_email', 'mentor@academy.com')
+    )
+    db.session.add(student)
+    db.session.commit()
+    return jsonify({'status': 'created', 'student': student.to_dict()}), 201
+
+
+@main.route('/api/ingest/event', methods=['POST'])
+def ingest_event():
+    """Receive a student activity event from external platform."""
+    data = request.json
+    if not data or not data.get('student_email'):
+        return jsonify({'error': 'student_email is required'}), 400
+
+    student = Student.query.filter_by(email=data['student_email']).first()
+    if not student:
+        return jsonify({'error': 'Student not found. Create student first via /api/ingest/student'}), 404
+
+    from datetime import date as dt
+    today = dt.today()
+
+    # Check if log exists for today
+    existing_log = ActivityLog.query.filter_by(
+        student_id=student.id, date=today
+    ).first()
+
+    event_type = data.get('event_type', 'login')
+
+    if existing_log:
+        # Update today's log
+        if event_type == 'login':
+            existing_log.logged_in = True
+            if data.get('session_minutes'):
+                existing_log.session_minutes = max(
+                    existing_log.session_minutes,
+                    int(data['session_minutes'])
+                )
+        if event_type == 'assignment':
+            existing_log.assignment_submitted = True
+        if event_type == 'quiz' and data.get('quiz_score') is not None:
+            existing_log.quiz_score = float(data['quiz_score'])
+        db.session.commit()
+    else:
+        # Create new log for today
+        log = ActivityLog(
+            student_id=student.id,
+            date=today,
+            logged_in=(event_type == 'login'),
+            session_minutes=int(data.get('session_minutes', 0)),
+            assignment_submitted=(event_type == 'assignment'),
+            quiz_score=float(data['quiz_score']) if event_type == 'quiz' and data.get('quiz_score') else None
+        )
+        db.session.add(log)
+        db.session.commit()
+
+    # Recalculate risk score
+    risk = calculate_risk_score(student.id)
+    rs = RiskScore(
+        student_id=student.id,
+        score=risk['score'],
+        level=risk['level'],
+        signals=risk['signals']
+    )
+    db.session.add(rs)
+    db.session.commit()
+
+    return jsonify({
+        'status': 'event_recorded',
+        'student': student.name,
+        'risk_score': risk['score'],
+        'risk_level': risk['level']
+    })
