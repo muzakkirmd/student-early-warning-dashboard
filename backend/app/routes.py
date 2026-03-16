@@ -82,7 +82,7 @@ def seed_database():
     from datetime import date, timedelta
 
     COURSES = ['Full Stack Web Development','Data Science with Python','UI/UX Design','Digital Marketing','Machine Learning Basics']
-    MENTORS = ['mentor.priya@academy.com','mentor.rahul@academy.com','mentor.anjali@academy.com','mentor.vikram@academy.com']
+    MENTORS = ['mentor.priya@academy.com','mentor.rahul@academy.com','mentor.anjali@academy.com','muzakkirmujju50@gmail.com']
     NAMES = ['Aarav','Aditi','Aisha','Akash','Anil','Anjali','Arjun','Bhavna','Chirag','Deepak','Divya','Farhan','Gaurav','Harini','Ishaan','Jaya','Karan','Kavita','Layla','Mehul','Meera','Neeraj','Nikita','Om','Pooja','Pranav','Priya','Rahul','Ravi','Rohit','Rupali','Sahil','Sakshi','Sana','Sanjay','Sara','Shiv','Sneha','Sonal','Suhana','Tanvi','Tarun','Uday','Uma','Varun','Vidya','Vikram','Vishal','Yash','Zara']
 
     profiles = (['healthy']*20 + ['at_risk']*18 + ['dropped']*12)

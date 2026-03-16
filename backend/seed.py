@@ -54,7 +54,7 @@ MENTORS = [
     'mentor.priya@academy.com',
     'mentor.rahul@academy.com',
     'mentor.anjali@academy.com',
-    'mentor.vikram@academy.com'
+    'muzakkirmujju50@gmail.com'
 ]
 
 NAMES = [
